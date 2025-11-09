@@ -20,7 +20,7 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['POST'],
   allowedHeaders: ['Content-Type'],
   credentials: false,
   maxAge: 3600,
@@ -37,7 +37,7 @@ const limiter = rateLimit({
   skip: (req) => NODE_ENV === 'development',
 });
 
-app.use('/api/', limiter);
+app.use('/v1/', limiter);
 app.use(express.json({ limit: '1mb' }));
 
 const pool = new Pool({
@@ -74,7 +74,7 @@ async function ensureAdhesionsTable() {
   }
 }
 
-app.post('/api/adhesions', async (req, res) => {
+app.post('/v1/adhesions', async (req, res) => {
   try {
     const { name, email } = req.body;
 
@@ -117,7 +117,7 @@ app.post('/api/adhesions', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
+app.get('/v1/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
