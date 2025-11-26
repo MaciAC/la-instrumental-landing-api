@@ -74,6 +74,7 @@ async function ensureAdhesionsTable() {
           name VARCHAR(255) NOT NULL,
           email VARCHAR(255) NOT NULL,
           comment TEXT,
+          newsletter BOOLEAN NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
@@ -88,7 +89,7 @@ async function ensureAdhesionsTable() {
 
 app.post('/v1/adhesions', async (req, res) => {
   try {
-    const { name, email, comment } = req.body;
+    const { name, email, comment, receiveInfo } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Valid name is required' });
@@ -117,16 +118,21 @@ app.post('/v1/adhesions', async (req, res) => {
     if (comment && comment.length > 1000) {
       return res.status(400).json({ error: 'Comment must be 1000 characters or less' });
     }
+    if (typeof receiveInfo !== 'boolean') {
+      return res.status(400).json({ error: 'receiveInfo must be a boolean value' });
+    }
+    
 
     const sanitizedName = name.trim();
     const sanitizedEmail = email.trim().toLowerCase();
     const sanitizedComment = comment ? comment.trim() : null;
+    const sanitizedNewsletter = receiveInfo;
 
     const client = await pool.connect();
     try {
       const result = await client.query(
-        'INSERT INTO adhesions (name, email, comment) VALUES ($1, $2, $3) RETURNING id, name, email, comment, created_at',
-        [sanitizedName, sanitizedEmail, sanitizedComment]
+        'INSERT INTO adhesions (name, email, comment, newsletter) VALUES ($1, $2, $3, $4) RETURNING id, name, email, comment, newsletter, created_at',
+        [sanitizedName, sanitizedEmail, sanitizedComment, sanitizedNewsletter]
       );
       res.status(201).json({ data: result.rows[0] });
     } finally {
