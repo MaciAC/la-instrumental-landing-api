@@ -21,7 +21,7 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
   exposedHeaders: ['Content-Length'],
   credentials: false,
   maxAge: 86400,
@@ -50,6 +50,19 @@ const limiter = rateLimit({
 
 app.use('/v1/', limiter);
 app.use(express.json({ limit: '1mb' }));
+
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-token-change-me';
+
+const authenticateAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.split(' ')[1];
+
+  if (!token || token !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  next();
+};
 
 const pool = new Pool({
   host: process.env.DATABASE_HOST,
@@ -141,6 +154,41 @@ app.post('/v1/adhesions', async (req, res) => {
   } catch (err) {
     console.error('Error saving adhesion:', err);
     res.status(500).json({ error: 'Failed to save adhesion' });
+  }
+});
+
+app.get('/v1/adhesions', authenticateAdmin, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '10', 10)));
+    const offset = (page - 1) * limit;
+
+    const client = await pool.connect();
+    try {
+      const countResult = await client.query('SELECT COUNT(*) as total FROM adhesions');
+      const total = parseInt(countResult.rows[0].total, 10);
+
+      const result = await client.query(
+        'SELECT id, name, email, comment, newsletter, created_at FROM adhesions ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        [limit, offset]
+      );
+
+      const totalPages = Math.ceil(total / limit);
+      res.json({
+        data: result.rows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Error fetching adhesions:', err);
+    res.status(500).json({ error: 'Failed to fetch adhesions' });
   }
 });
 
