@@ -3,6 +3,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { validate: validateEmail } = require('email-validator');
 const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
@@ -51,17 +52,36 @@ const limiter = rateLimit({
 app.use('/v1/', limiter);
 app.use(express.json({ limit: '1mb' }));
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin-token-change-me';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-const authenticateAdmin = (req, res, next) => {
+const authenticateAdmin = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.split(' ')[1];
-
-  if (!token || token !== ADMIN_TOKEN) {
+  
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  next();
+  try {
+    const credentials = Buffer.from(authHeader.split(' ')[1], 'base64').toString('utf-8');
+    const [username, password] = credentials.split(':');
+
+    if (!username || !password) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (username !== 'admin' || !ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, ADMIN_PASSWORD);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 };
 
 const pool = new Pool({
