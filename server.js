@@ -74,7 +74,9 @@ const authenticateAdmin = async (req, res, next) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     console.log(username,password);
+    console.log(ADMIN_PASSWORD);
     const isPasswordValid = await bcrypt.compare(password, ADMIN_PASSWORD);
+    console.log(isPasswordValid);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
