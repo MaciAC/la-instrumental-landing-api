@@ -63,24 +63,29 @@ const authenticateAdmin = async (req, res, next) => {
   }
 
   try {
+    console.log("Authenticating admin...");
     const credentials = Buffer.from(authHeader.split(' ')[1], 'base64').toString('utf-8');
     const [username, password] = credentials.split(':');
 
-    if (!username || !password) {
+    if (!username) {
+      console.log("Username not provided! 🧨");
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!password) {
+      console.log("Password not provided! 🧨");
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     if (username !== 'admin' || !ADMIN_PASSWORD) {
+      console.log("Username does not match admin username! 🧨");
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    console.log(username,password);
-    console.log(ADMIN_PASSWORD);
     const isPasswordValid = await bcrypt.compare(password, ADMIN_PASSWORD);
-    console.log(isPasswordValid);
     if (!isPasswordValid) {
+      console.log("Invalid password");
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
+    console.log("Admin authenticated successfully!");
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -125,6 +130,7 @@ async function ensureAdhesionsTable() {
 
 app.post('/v1/adhesions', async (req, res) => {
   try {
+    console.log('Received POST request for adhesions');
     const { name, email, comment, receiveInfo } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -170,6 +176,7 @@ app.post('/v1/adhesions', async (req, res) => {
         'INSERT INTO adhesions (name, email, comment, newsletter) VALUES ($1, $2, $3, $4) RETURNING id, name, email, comment, newsletter, created_at',
         [sanitizedName, sanitizedEmail, sanitizedComment, sanitizedNewsletter]
       );
+      console.log('Adhesion saved successfully');
       res.status(201).json({ data: result.rows[0] });
     } finally {
       client.release();
