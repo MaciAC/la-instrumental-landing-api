@@ -29,6 +29,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
